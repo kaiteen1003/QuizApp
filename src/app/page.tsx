@@ -1,103 +1,218 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import ImageSlider from "@/components/ImageSlider";
+import GroupScoreBoard from "@/components/GroupScoreBoard";
+import QuizController from "@/components/QuizController";
+import { Button, TextField, Typography, Box } from "@mui/material";
+import { messages } from "@/i18n/messages";
+import { Header } from "./Header";
+
+const TOTAL_QUIZZES = 13;
+const IMAGES_PER_QUIZ = 5;
+
+const generateGroupNames = (count: number): string[] => {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  return Array.from({ length: count }, (_, i) =>
+    i < letters.length ? letters[i] : `G${i + 1}`
+  );
+};
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [quizIndex, setQuizIndex] = useState(0);
+  const [imageIndex, setImageIndex] = useState(0);
+  const [groupCountInput, setGroupCountInput] = useState(4);
+  const [groups, setGroups] = useState(generateGroupNames(4));
+  const [scores, setScores] = useState<Record<string, number>>(
+    Object.fromEntries(generateGroupNames(4).map((g) => [g, 0]))
+  );
+  const [language, setLanguage] = useState<"ja" | "en">("ja");
+  const t = messages[language]; // ← 翻訳関数の代わり
+  const [step, setStep] = useState<"title" | "rules" | "quiz">("title");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  const imageSrc = `/images/${quizIndex + 1}-${imageIndex + 1}.jpg`;
+
+  const nextImage = () =>
+    imageIndex < IMAGES_PER_QUIZ - 1 && setImageIndex((i) => i + 1);
+  const prevImage = () => imageIndex > 0 && setImageIndex((i) => i - 1);
+  const nextQuiz = () => {
+    if (quizIndex < TOTAL_QUIZZES - 1) {
+      setQuizIndex((q) => q + 1);
+      setImageIndex(0);
+    }
+  };
+  const prevQuiz = () => {
+    if (quizIndex > 0) {
+      setQuizIndex((q) => q - 1);
+      setImageIndex(0);
+    }
+  };
+  const addScore = (group: string) => {
+    setScores((prev) => ({ ...prev, [group]: prev[group] + 1 }));
+  };
+  const applyGroupCount = () => {
+    const newGroups = generateGroupNames(groupCountInput);
+    setGroups(newGroups);
+    setScores(Object.fromEntries(newGroups.map((g) => [g, 0])));
+  };
+  const subtractScore = (group: string) => {
+    setScores((prev) => ({
+      ...prev,
+      [group]: Math.max(0, prev[group] - 1), // 点数が0未満にならないように
+    }));
+  };
+
+  return (
+    <>
+      <Header
+        language={language}
+        onToggleLanguage={() =>
+          setLanguage((prev) => (prev === "ja" ? "en" : "ja"))
+        }
+      />
+      <Box
+        sx={{
+          minHeight: "100vh",
+          p: 4,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 3,
+        }}
+      >
+        {step === "title" && (
+          <Box textAlign="center">
+            <Typography variant="h2" fontWeight="bold">
+              {t.title}
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => setStep("rules")}
+              sx={{ mt: 4 }}
+            >
+              {language === "ja" ? "スタート" : "Start"}
+            </Button>
+          </Box>
+        )}
+        {step === "rules" && (
+          <Box maxWidth="600px" textAlign="center">
+            <Typography variant="h5" gutterBottom>
+              {language === "ja" ? "ルール説明" : "How to Play"}
+            </Typography>
+            {language === "ja" ? (
+              <>
+                <Typography variant="body1" paragraph>
+                  各問題では、5段階のモザイクのかかった画像を用意しています。
+                </Typography>
+                <Typography variant="body1" paragraph>
+                  各段階で、グループごとにホワイトボードに答えを書いてください。
+                </Typography>
+                <Typography variant="body1" paragraph>
+                  最も早い段階で正解したグループに1点が加算されます！
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Typography variant="body1" paragraph>
+                  Each question provides an image with five levels of mosaic.
+                </Typography>
+                <Typography variant="body1" paragraph>
+                  At each step, each group writes their answer on a whiteboard.
+                </Typography>
+                <Typography variant="body1" paragraph>
+                  The group that answers correctly the earliest gets 1 point!
+                </Typography>
+              </>
+            )}
+            <Box mt={4}>
+              <img
+                src="/img/sample.jpg"
+                alt="サンプル画像"
+                style={{
+                  maxWidth: "50%",
+                  height: "auto",
+                  textAlign: "center",
+                  margin: "0 auto",
+                }}
+              />
+            </Box>
+
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => setStep("quiz")}
+              sx={{ mt: 4 }}
+            >
+              {language === "ja" ? "次へ" : "Next"}
+            </Button>
+          </Box>
+        )}
+        {step === "quiz" && (
+          <>
+            <Typography variant="h4" fontWeight="bold">
+              {t.title}
+            </Typography>
+
+            <Typography variant="h6">
+              {t.question} {quizIndex + 1} / {TOTAL_QUIZZES}
+            </Typography>
+
+            <ImageSlider
+              imageSrc={imageSrc}
+              altText={`クイズ${quizIndex + 1}`}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+            <QuizController
+              imageIndex={imageIndex}
+              maxImages={IMAGES_PER_QUIZ}
+              quizIndex={quizIndex}
+              maxQuizzes={TOTAL_QUIZZES}
+              onNextImage={nextImage}
+              onPrevImage={prevImage}
+              onNextQuiz={nextQuiz}
+              onPrevQuiz={prevQuiz}
+              t={{
+                prevImage: t.prevImage,
+                nextImage: t.nextImage,
+                prevQuiz: t.prevQuiz,
+                nextQuiz: t.nextQuiz,
+              }}
+            />
+
+            <GroupScoreBoard
+              scores={scores}
+              onAddScore={addScore}
+              onSubtractScore={subtractScore}
+              groups={groups}
+              t={{
+                group: t.group,
+                points: t.points,
+                plus: t.plus,
+                minus: t.minus,
+              }}
+            />
+
+            {/* グループ数入力 */}
+            <Box display="flex" alignItems="center" gap={2} mt={4}>
+              <TextField
+                type="number"
+                label={t.groupCount} // ← 多言語対応
+                size="small"
+                value={groupCountInput}
+                onChange={(e) => setGroupCountInput(Number(e.target.value))}
+                inputProps={{ min: 1, max: 26 }}
+              />
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={applyGroupCount}
+              >
+                {t.apply}
+              </Button>
+            </Box>
+          </>
+        )}
+      </Box>
+    </>
   );
 }
